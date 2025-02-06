@@ -1,6 +1,5 @@
 import os
 import sys
-from botocore.session import Session
 from pynamodb.models import Model
 from pynamodb.attributes import UnicodeAttribute, BooleanAttribute
 from dotenv import load_dotenv
@@ -11,12 +10,10 @@ load_dotenv()
 
 TABLE_NAME=os.environ.get("TABLE_NAME")
 
-botocore_session = Session()
 
 class PhoneNumberCapability(Model):
     class Meta: # pyright: ignore [reportIncompatibleVariableOverride]
         table_name = TABLE_NAME
-        botocore_session = botocore_session
 
     phone_number = UnicodeAttribute(hash_key=True)
     channel = UnicodeAttribute(range_key=True)
