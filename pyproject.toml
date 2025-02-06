@@ -1,0 +1,28 @@
+[project]
+name = "ddb-ops"
+version = "0.1.0"
+description = "Testing out various access patterns for DynamoDB"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "boto3>=1.36.13",
+    "boto3-stubs[dynamodb]>=1.36.13",
+    "pynamodb>=6.0.2",
+    "python-dotenv>=1.0.1",
+    "rich>=13.9.4",
+    "typer>=0.15.1",
+]
+
+# BELOW ARE REQUIRED FOR PACKAGES
+[tool.hatch.build.targets.wheel]
+packages = ["tasks", "models", "config"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["boto3-stubs"]
