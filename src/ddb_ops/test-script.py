@@ -1,16 +1,26 @@
-from collections.abc import Iterable
 from datetime import datetime
+from typing import Annotated
+from collections.abc import Iterable
 from random import choice
 
 import typer
 from rich import print
 
+from ddb_ops.config.logger import setup_logger
 from ddb_ops.models.phone_number_capability import PhoneNumberCapability
 from ddb_ops.types import CapabilityCode
 
 app = typer.Typer()
 
 CURRENT_DATE = datetime.now().strftime("%Y-%m-%d")
+
+def validate_date(value: str):
+    try:
+        validated_date = datetime.strptime(value, "%Y-%m-%d")
+        return validated_date.strftime("%Y-%m-%d")
+    except ValueError:
+        raise typer.BadParameter("Date must be in YYYY-MM-DD format")
+
 
 def create_seed_records(
     start_from: int = 0,
@@ -43,3 +53,32 @@ def run_seed(total: int, date: str, prefix: str, execute: bool):
                 batch.save(record)
             else:
                 print("Dry run. No records saved.")
+
+
+@app.command()
+def seed(
+    total: Annotated[
+        int, typer.Option("--total", help="Number of records to generate")
+    ],
+    date: Annotated[
+        str,
+        typer.Option(
+            "--date",
+            callback=validate_date,
+            help="Date in YYYY-MM-DD format. Defaults to the current date.",
+        ),
+    ] = CURRENT_DATE,
+    prefix: Annotated[
+        str,
+        typer.Option("--prefix", help="Prefix for the generated numbers (e.g. XXA)"),
+    ] = "XXA",
+    execute: Annotated[
+        bool, typer.Option("--execute", help="Write the values to DynamoDB")
+    ] = False,
+):
+    run_seed(total=total, date=date, prefix=prefix, execute=execute)
+
+
+if __name__ == "__main__":
+    setup_logger()
+    app()

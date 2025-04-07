@@ -14,6 +14,7 @@ dependencies = [
 ]
 [tool.uv]
 index-url = "https://pypi.org/simple"
+package = false
 
 
 # BELOW ARE REQUIRED FOR PACKAGES
@@ -37,7 +38,6 @@ dev = [
 [tool.basedpyright]
 venvPath = "."
 venv = ".venv"
-include = ["boto3-stubs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
