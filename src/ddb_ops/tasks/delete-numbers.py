@@ -1,8 +1,8 @@
 import typer
 from rich import print
 from typing import Annotated
-from config.logger import setup_logger
-from models.phone_number_capability import PhoneNumberCapability
+from ..config.logger import setup_logger
+from ..models.phone_number_capability import PhoneNumberCapability
 
 app = typer.Typer()
 

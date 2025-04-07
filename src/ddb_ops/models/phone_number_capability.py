@@ -1,45 +1,87 @@
-import os
-from datetime import datetime, timezone
-from typing import override
+"""PhoneNumberCapability model."""
 
-from dotenv import load_dotenv
-from pynamodb.attributes import Attribute, BooleanAttribute, UnicodeAttribute
+from __future__ import annotations
+
+import typing
+from datetime import datetime
+
+from pynamodb.attributes import Attribute, UnicodeAttribute
 from pynamodb.constants import STRING
+from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
 from pynamodb.models import Model
 
-from ddb_ops.types import CapabilityCode
-
-# Load environment variables from .env file, if present.
-# We're mainly using
-load_dotenv()
-
-from rich.console import Console
-
-console = Console()
+from ..types import Channel, CapabilityCode
+from .. import constants
 
 
-class CapabilityAttribute(Attribute[CapabilityCode]):
+class LastUpdatedAtIndex(GlobalSecondaryIndex["PhoneNumberCapability"]):
+    """LastUpdatedAtIndex GSI definition.
+
+    Attributes
+    ----------
+        last_refreshed_at(hash_key)
+        channel(range_key)
+
+    """
+
+    class Meta:  # noqa: D106
+        index_name = constants.LAST_REFRESHED_AT_INDEX_NAME
+        projection = AllProjection()
+        billing_mode = "PAY_PER_REQUEST"
+
+    last_refreshed_at = UnicodeAttribute(hash_key=True, null=False)
+    channel = UnicodeAttribute(range_key=True, null=False)
+
+
+class CapabilityStatusAttribute(Attribute[CapabilityCode]):
+    """Custom attribute for CapabilityStatus."""
+
     attr_type = STRING
+    """Attribute type."""
 
-    @override
-    def serialize(self, value: CapabilityCode) -> str:
-        console.log("serialize called:", value)
-        return value.value
+    def serialize(self, capability_code: CapabilityCode) -> str:
+        """Serialize CapabilityCode to string."""
+        if not isinstance(capability_code, CapabilityCode):
+            raise ValueError(f"Expected CapabilityCode, got {type(capability_code)}")
+        return capability_code.value
 
-    @override
     def deserialize(self, value: str) -> CapabilityCode:
-        console.log("deserialize called:", value)
+        """Deserialize string to CapabilityCode."""
         return CapabilityCode(value)
 
 
 class PhoneNumberCapability(Model):
-    class Meta:
-        table_name = os.environ.get("TABLE_NAME", "phone_number_capabilities")
+    """PhoneNumberCapability model definition.
 
-    phone_number = UnicodeAttribute(hash_key=True)
-    channel = UnicodeAttribute(range_key=True)
-    is_capable = BooleanAttribute(default=True)
+    Attributes
+    ----------
+        phone_number: The phone number.
+        channel: The channel (e.g. RCS).
+        is_capable: The capability status.
+        last_refreshed_at: The last refreshed date (YYYY-MM-DD). Defaults to the current date.
+
+    """
+
+    class Meta:  # noqa: D106
+        table_name = constants.TABLE_NAME
+        region = constants.TABLE_REGION
+        billing_mode = "PAY_PER_REQUEST"
+
+    phone_number = UnicodeAttribute(hash_key=True, null=False)
+    channel = UnicodeAttribute(range_key=True, default=Channel.RCS.value, null=False)
     last_refreshed_at = UnicodeAttribute(
-        default=lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        default=lambda: datetime.now().strftime("%Y-%m-%d"), null=False
     )
-    capability = CapabilityAttribute(null=True)
+    last_refreshed_at_index = LastUpdatedAtIndex()
+    capability_status = CapabilityStatusAttribute(null=False)
+
+    @property
+    def is_capable(self) -> bool:
+        """Check if the phone number is capable."""
+        return self.capability_status == CapabilityCode.ENABLED
+
+    def __eq__(self, other: typing.Any) -> bool:
+        """Equality comparison between two PhoneNumberCapability objects."""
+        if not isinstance(other, PhoneNumberCapability):
+            return False
+        return bool(self.serialize() == other.serialize())

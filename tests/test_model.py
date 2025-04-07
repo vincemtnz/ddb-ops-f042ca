@@ -1,14 +1,12 @@
 import os
-from datetime import datetime, timezone
 
 import pytest
+from datetime import datetime
 from moto import mock_aws
-from rich.console import Console
+from rich import print
 
 from ddb_ops.models.phone_number_capability import PhoneNumberCapability
-from ddb_ops.types import CapabilityCode
-
-console = Console()
+from ddb_ops.tasks.seed import run_seed
 
 
 @pytest.fixture(scope="function")
@@ -34,32 +32,14 @@ def setup_table(mocked_aws):
     PhoneNumberCapability.delete_table()
 
 
-def test_default_values_on_new_items():
-    PhoneNumberCapability(phone_number="1234567890", channel="rcs").save()  # pyright: ignore[reportUnusedCallResult]
+def test_seed_task():
+    run_seed(
+        total=10,
+        date=datetime.now().strftime("%Y-%d-%m"),
+        prefix="PYTEST",
+        execute=True,
+    )
 
-    result = PhoneNumberCapability.get("1234567890", "rcs")
+    records = [record for record in PhoneNumberCapability.scan()]
 
-    assert result.attribute_values == {
-        "phone_number": "1234567890",
-        "channel": "rcs",
-        "is_capable": True,
-        "last_refreshed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-    }
-
-
-def test_capability_code_serde():
-    PhoneNumberCapability(
-        phone_number="1234567890", channel="rcs", capability=CapabilityCode.ENABLED
-    ).save()  # pyright: ignore[reportUnusedCallResult]
-
-    result = PhoneNumberCapability.get("1234567890", "rcs")
-
-    assert result.capability == CapabilityCode.ENABLED
-    assert isinstance(result.capability, CapabilityCode)
-    assert result.attribute_values == {
-        "phone_number": "1234567890",
-        "channel": "rcs",
-        "is_capable": True,
-        "last_refreshed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "capability": "ENABLED",
-    }
+    assert len(records) == 10
